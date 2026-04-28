@@ -1,4 +1,4 @@
-CREATE TABLE staff (
+CREATE TABLE IF NOT EXISTS staff (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email      TEXT UNIQUE NOT NULL,
   role       TEXT DEFAULT 'nurse' CHECK (role IN ('nurse','charge_nurse','admin')),

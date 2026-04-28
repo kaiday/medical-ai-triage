@@ -1,3 +1,6 @@
+-- Apply this file in the Supabase SQL editor for feature/backend-queue-api.
+-- It is idempotent and includes the baseline tables plus queue RPC function.
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS staff (
@@ -27,3 +30,34 @@ CREATE TABLE IF NOT EXISTS patients (
   seen_at         TIMESTAMPTZ,
   status          TEXT DEFAULT 'waiting' CHECK (status IN ('waiting','confirmed','seen'))
 );
+
+CREATE TABLE IF NOT EXISTS classification_log (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id   UUID REFERENCES patients(id) ON DELETE CASCADE,
+  input_hash   TEXT,
+  model        TEXT,
+  raw_response JSONB,
+  latency_ms   INT,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION get_active_queue()
+RETURNS SETOF patients
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT *
+  FROM patients
+  WHERE status != 'seen'
+  ORDER BY
+    CASE final_level
+      WHEN 'CRITICAL' THEN 4
+      WHEN 'HIGH' THEN 3
+      WHEN 'MEDIUM' THEN 2
+      WHEN 'LOW' THEN 1
+      WHEN 'UNCLASSIFIED' THEN 0
+      ELSE 0
+    END DESC,
+    submitted_at ASC;
+$$;
