@@ -46,3 +46,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> StaffUser:
         email=claims.get("email", ""),
         role=_extract_role(claims),
     )
+
+
+# T-09: RBAC factory — returns a Depends-compatible guard for the given roles
+def require_role(*roles: str):
+    async def guard(user: StaffUser = Depends(get_current_user)):
+        if user.role not in roles:
+            raise HTTPException(status_code=403, detail="Insufficient role")
+        return user
+    return guard
