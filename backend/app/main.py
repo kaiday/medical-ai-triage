@@ -12,5 +12,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/health", tags=["health"])
+async def health_check():
+    return {
+        "status": "ok",
+        "supabase_configured": bool(
+            getattr(settings, "SUPABASE_URL", None)
+            and getattr(settings, "SUPABASE_SERVICE_KEY", None)
+        ),
+        "auth_enabled": getattr(settings, "AUTH_ENABLED", None),
+    }
+
+
 app.include_router(triage.router)
 app.include_router(queue.router)
