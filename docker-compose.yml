@@ -40,3 +40,29 @@ services:
     command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
     profiles:
       - test
+
+  api-smoke:
+    build:
+      context: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SMOKE_BASE_URL: http://api:8000
+      SMOKE_REQUIRE_SUPABASE: ${SMOKE_REQUIRE_SUPABASE:-true}
+      SMOKE_CHECK_QUEUE: ${SMOKE_CHECK_QUEUE:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-dummy}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      CLASSIFY_TIMEOUT_SECONDS: ${CLASSIFY_TIMEOUT_SECONDS:-8}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
+    command: ["python", "smoke_test.py"]
+    depends_on:
+      api:
+        condition: service_healthy
+    profiles:
+      - smoke
