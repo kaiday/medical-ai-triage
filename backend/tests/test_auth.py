@@ -16,6 +16,28 @@ import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
 
+from app.models.schemas import (
+    PatientIntake, PatientRecord, TriageResult, UrgencyLevel, PatientStatus,
+)
+
+
+def _dummy_patient() -> PatientRecord:
+    return PatientRecord(
+        id="test-id",
+        patient_ref="P-TEST",
+        intake=PatientIntake(chief_complaint="test complaint", pain_scale=5),
+        triage=TriageResult(
+            urgency=UrgencyLevel.LOW,
+            confidence=50,
+            reasoning="test",
+            recommended_actions=["monitor"],
+            escalation_flag=False,
+            source="rule-based",
+        ),
+        final_level=UrgencyLevel.LOW,
+        submitted_at="2026-04-29T00:00:00Z",
+    )
+
 TEST_SECRET = "test-secret-unit-tests-only"
 
 
@@ -65,6 +87,15 @@ def client_prod():
 # ---------------------------------------------------------------------------
 
 class TestT12AuthDisabled:
+    @pytest.fixture(autouse=True)
+    def _mock_queue(self, monkeypatch):
+        from app.services import queue_service
+        monkeypatch.setattr(queue_service, "get_active_queue", AsyncMock(return_value=[]))
+        monkeypatch.setattr(queue_service, "confirm_patient", AsyncMock(return_value=_dummy_patient()))
+        monkeypatch.setattr(queue_service, "override_urgency", AsyncMock(return_value=_dummy_patient()))
+        monkeypatch.setattr(queue_service, "mark_seen", AsyncMock(return_value=_dummy_patient()))
+        monkeypatch.setattr(queue_service, "get_seen_today", AsyncMock(return_value=[]))
+
     def test_get_queue(self, client_dev):
         assert client_dev.get("/queue/").status_code == 200
 
@@ -72,7 +103,7 @@ class TestT12AuthDisabled:
         assert client_dev.patch("/queue/test-id/status").status_code == 200
 
     def test_post_override(self, client_dev):
-        assert client_dev.post("/queue/test-id/override").status_code == 200
+        assert client_dev.post("/queue/test-id/override", json={"level": "HIGH"}).status_code == 200
 
     def test_post_seen(self, client_dev):
         assert client_dev.post("/queue/test-id/seen").status_code == 200
@@ -106,7 +137,9 @@ class TestT13NoToken:
 # T-14: nurse JWT → GET /queue is allowed
 # ---------------------------------------------------------------------------
 
-def test_t14_nurse_can_view_queue(client_prod):
+def test_t14_nurse_can_view_queue(client_prod, monkeypatch):
+    from app.services import queue_service
+    monkeypatch.setattr(queue_service, "get_active_queue", AsyncMock(return_value=[]))
     r = client_prod.get("/queue/", headers=_bearer("nurse"))
     assert r.status_code == 200
 
@@ -125,10 +158,15 @@ def test_t15_nurse_cannot_override(client_prod):
 # T-16: charge_nurse JWT → POST override is allowed (stub → 200 null body)
 # ---------------------------------------------------------------------------
 
-def test_t16_charge_nurse_can_override(client_prod):
-    r = client_prod.post("/queue/test-id/override", headers=_bearer("charge_nurse"))
-    # Stub returns None → 200; real impl may return 404 when patient missing
-    assert r.status_code in (200, 404)
+def test_t16_charge_nurse_can_override(client_prod, monkeypatch):
+    from app.services import queue_service
+    monkeypatch.setattr(queue_service, "override_urgency", AsyncMock(return_value=_dummy_patient()))
+    r = client_prod.post(
+        "/queue/test-id/override",
+        headers=_bearer("charge_nurse"),
+        json={"level": "HIGH"},
+    )
+    assert r.status_code == 200
 
 
 # ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ from typing import Optional
 from openai import AsyncOpenAI, APITimeoutError, APIConnectionError, RateLimitError, AuthenticationError
 
 from app.core.config import settings
+from app.core.supabase import insert, is_configured
 from app.models.schemas import PatientIntake, PatientRecord, TriageResult, UrgencyLevel
 
 SYSTEM_PROMPT = """You are a clinical triage assistant helping nurses prioritise patients.
@@ -195,16 +196,32 @@ def _unclassified_result() -> TriageResult:
 
 # T-10: fire-and-forget audit log (silently skips if Supabase not configured)
 def _write_audit_log(patient_id: str, payload: dict, result: TriageResult, latency_ms: int) -> None:
+    if not is_configured():
+        return
+
+    async def _do_insert() -> None:
+        try:
+            await insert("classification_log", {
+                "patient_id":   patient_id,
+                "input_hash":   hashlib.sha256(
+                                    json.dumps(payload, sort_keys=True).encode()
+                                ).hexdigest(),
+                "model":        result.source,
+                "raw_response": {
+                    "urgency":    result.urgency.value,
+                    "confidence": result.confidence,
+                    "reasoning":  result.reasoning,
+                },
+                "latency_ms":   latency_ms,
+            })
+        except Exception:
+            pass  # audit failure must never propagate
+
     try:
-        if not settings.SUPABASE_URL:
-            return
-        input_hash = hashlib.sha256(
-            json.dumps(payload, sort_keys=True).encode()
-        ).hexdigest()
-        # Wired to Supabase in feature/supabase-setup
-        _ = input_hash
-    except Exception:
-        pass
+        loop = asyncio.get_running_loop()
+        loop.create_task(_do_insert())
+    except RuntimeError:
+        pass  # no running event loop (sync test context) — skip silently
 
 
 # T-11: main entry point — orchestrates the full fallback chain

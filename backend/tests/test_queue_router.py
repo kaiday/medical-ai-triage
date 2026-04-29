@@ -55,7 +55,7 @@ def test_get_queue_returns_records(monkeypatch):
     response = _client().get("/queue")
 
     assert response.status_code == 200
-    assert [item["final_level"] for item in response.json()] == ["CRITICAL", "LOW"]
+    assert [item["finalLevel"] for item in response.json()] == ["CRITICAL", "LOW"]
 
 
 def test_confirm_unknown_patient_returns_404(monkeypatch):
@@ -92,7 +92,7 @@ def test_override_accepts_charge_nurse(monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json()["final_level"] == "HIGH"
+    assert response.json()["finalLevel"] == "HIGH"
 
 
 def test_override_rejects_nurse_role(monkeypatch):

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from app.core.supabase import SupabaseConfigurationError, get_supabase_client
+from app.core.supabase import SupabaseConfigurationError, get_supabase_client, insert, is_configured
 from app.models.schemas import (
     PatientIntake,
     PatientRecord,
@@ -173,6 +173,29 @@ async def mark_seen(patient_id: str) -> PatientRecord:
         headers={"Prefer": "return=representation"},
     )
     return _extract_single_patient(rows, patient_id)
+
+
+async def save_patient(record: PatientRecord) -> None:
+    if not is_configured():
+        return
+    row = {
+        "id":              record.id,
+        "patient_ref":     record.patient_ref,
+        "age":             record.intake.age,
+        "chief_complaint": record.intake.chief_complaint,
+        "pain_scale":      record.intake.pain_scale,
+        "duration":        record.intake.duration,
+        "conditions":      record.intake.conditions,
+        "submitted_at":    record.submitted_at,
+        "ai_level":        record.triage.urgency.value,
+        "ai_confidence":   record.triage.confidence,
+        "ai_reasoning":    record.triage.reasoning,
+        "ai_actions":      record.triage.recommended_actions,
+        "ai_source":       record.triage.source,
+        "final_level":     record.final_level.value,
+        "status":          "waiting",
+    }
+    await insert("patients", row)
 
 
 async def get_seen_today() -> List[PatientRecord]:
