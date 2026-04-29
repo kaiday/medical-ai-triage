@@ -1,7 +1,9 @@
 services:
   api:
     build: ./backend
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "8000:8000"
     depends_on:
@@ -12,7 +14,7 @@ services:
     environment:
       POSTGRES_DB: triage
       POSTGRES_USER: triage
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-only-change-me}
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d
