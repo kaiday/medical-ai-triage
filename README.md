@@ -38,6 +38,10 @@ medical-ai-triage/
 └── docs/            # Architecture and requirements documentation
 ```
 
+## Docker Backend
+
+Backend Docker setup and frontend connection instructions are documented in [docs/Docker_Backend.md](docs/Docker_Backend.md).
+
 ## License
 
 MIT
