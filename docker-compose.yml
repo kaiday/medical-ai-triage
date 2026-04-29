@@ -29,8 +29,14 @@ services:
       context: ./backend
     environment:
       OPENAI_API_KEY: dummy
-      SUPABASE_URL: dummy
+      OPENAI_MODEL: gpt-4o-mini
+      CLASSIFY_TIMEOUT_SECONDS: "8"
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_SERVICE_KEY: dummy
       SUPABASE_ANON_KEY: dummy
+      SUPABASE_JWT_SECRET: dummy
+      AUTH_ENABLED: "false"
+      ALLOWED_ORIGINS: '["http://localhost:5173","http://localhost:3000"]'
     command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
     profiles:
       - test
