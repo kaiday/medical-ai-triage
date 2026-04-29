@@ -3,7 +3,7 @@ import hashlib
 import json
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from openai import AsyncOpenAI, APITimeoutError, APIConnectionError, RateLimitError, AuthenticationError
@@ -248,5 +248,5 @@ async def classify_patient(intake: PatientIntake) -> PatientRecord:
         triage=result,
         final_level=result.urgency,
         confirmed=False,
-        submitted_at=datetime.now().strftime("%H:%M"),
+        submitted_at=datetime.now(timezone.utc).isoformat(),
     )

@@ -51,7 +51,7 @@ async def check_triage(client: httpx.AsyncClient) -> str | None:
     print("\nT-13  POST /triage")
     try:
         t0 = time.perf_counter()
-        resp = await client.post("/triage/", json=INTAKE_PAYLOAD)
+        resp = await client.post("/triage", json=INTAKE_PAYLOAD)
         ms = int((time.perf_counter() - t0) * 1000)
 
         passed = _result("status 200", resp.status_code == 200, f"got {resp.status_code}")
@@ -81,7 +81,7 @@ async def check_triage(client: httpx.AsyncClient) -> str | None:
 async def check_queue(client: httpx.AsyncClient, expected_id: str | None) -> bool:
     print("\nT-14  GET /queue")
     try:
-        resp = await client.get("/queue/")
+        resp = await client.get("/queue")
         passed = _result("status 200", resp.status_code == 200, f"got {resp.status_code}")
         if not passed:
             print(f"        body: {resp.text[:300]}")
@@ -89,20 +89,28 @@ async def check_queue(client: httpx.AsyncClient, expected_id: str | None) -> boo
 
         body = resp.json()
         patients = body if isinstance(body, list) else body.get("patients", [])
-        _result("returns list", isinstance(patients, list))
-        _result("non-empty", len(patients) > 0, f"{len(patients)} patients")
+        all_ok = True
+        all_ok &= _result("returns list", isinstance(patients, list))
+        all_ok &= _result("non-empty", len(patients) > 0, f"{len(patients)} patients")
 
         if expected_id:
             ids = [p.get("id") for p in patients]
-            _result("smoke patient in queue", expected_id in ids)
+            in_queue = expected_id in ids
+            all_ok &= _result("smoke patient in queue", in_queue)
+            if not in_queue:
+                print(f"        expected id: {expected_id}")
+                print(f"        returned ids: {ids[:10]}")
 
         # Verify sort order: no CRITICAL after HIGH, no HIGH after MEDIUM, etc.
         order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "UNCLASSIFIED": 4}
-        levels = [order.get(p.get("final_level", "UNCLASSIFIED"), 5) for p in patients]
+        levels = [
+            order.get(p.get("final_level") or p.get("finalLevel", "UNCLASSIFIED"), 5)
+            for p in patients
+        ]
         sorted_ok = levels == sorted(levels)
-        _result("queue sorted by urgency", sorted_ok)
+        all_ok &= _result("queue sorted by urgency", sorted_ok)
 
-        return True
+        return all_ok
 
     except Exception as exc:
         _result("GET /queue", False, str(exc))
@@ -183,7 +191,7 @@ async def check_auth_queue(client: httpx.AsyncClient) -> bool:
         token = f"{header}.{payload_b64}.{_b64(sig)}"
 
         resp = await client.get(
-            "/queue/",
+            "/queue",
             headers={"Authorization": f"Bearer {token}"},
         )
         passed = _result("GET /queue with nurse JWT → 200", resp.status_code == 200,
@@ -205,7 +213,7 @@ async def main(base_url: str) -> int:
 
     failures = 0
 
-    async with httpx.AsyncClient(base_url=base_url, timeout=15.0) as client:
+    async with httpx.AsyncClient(base_url=base_url, timeout=15.0, follow_redirects=True) as client:
         # Health check first
         print("\nHealth check")
         try:
@@ -232,7 +240,7 @@ async def main(base_url: str) -> int:
         failures += 1
 
     # T-16 needs a fresh client (may have different auth settings)
-    async with httpx.AsyncClient(base_url=base_url, timeout=15.0) as client:
+    async with httpx.AsyncClient(base_url=base_url, timeout=15.0, follow_redirects=True) as client:
         if not await check_auth_queue(client):
             failures += 1
 

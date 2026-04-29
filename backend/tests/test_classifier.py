@@ -11,6 +11,7 @@ Covers:
 """
 
 import asyncio
+from datetime import datetime
 import time
 from unittest.mock import patch, AsyncMock
 
@@ -64,6 +65,7 @@ async def test_t14_critical_chest_pain():
     assert record.triage.source == "rule-based"
     assert record.patient_ref.startswith("Patient #")
     assert record.id  # UUID present
+    assert datetime.fromisoformat(record.submitted_at)
 
 
 @pytest.mark.asyncio
