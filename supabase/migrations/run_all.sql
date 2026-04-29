@@ -91,7 +91,36 @@ CREATE POLICY "auth_select_log" ON classification_log
   FOR SELECT TO authenticated USING (true);
 
 -- ============================================================
--- 6. TEST ACCOUNTS (insert into staff after auth users exist)
+-- 6. GET_ACTIVE_QUEUE RPC FUNCTION
+-- ============================================================
+-- Called by GET /queue via POST /rest/v1/rpc/get_active_queue
+-- Returns all non-seen patients sorted by urgency rank then submission time.
+-- SECURITY DEFINER so the sort runs as the function owner, not the caller.
+CREATE OR REPLACE FUNCTION get_active_queue()
+RETURNS SETOF patients
+LANGUAGE sql STABLE SECURITY DEFINER
+AS $$
+  SELECT *
+  FROM patients
+  WHERE status != 'seen'
+  ORDER BY
+    CASE final_level
+      WHEN 'CRITICAL'     THEN 0
+      WHEN 'HIGH'         THEN 1
+      WHEN 'MEDIUM'       THEN 2
+      WHEN 'LOW'          THEN 3
+      WHEN 'UNCLASSIFIED' THEN 4
+      ELSE 5
+    END ASC,
+    submitted_at ASC;
+$$;
+
+-- Allow nurses (authenticated) and the anon role to call this function
+GRANT EXECUTE ON FUNCTION get_active_queue() TO authenticated;
+GRANT EXECUTE ON FUNCTION get_active_queue() TO anon;
+
+-- ============================================================
+-- 7. TEST ACCOUNTS (insert into staff after auth users exist)
 -- ============================================================
 -- Run after creating users in Authentication → Users:
 -- INSERT INTO staff (id, email, role) VALUES
