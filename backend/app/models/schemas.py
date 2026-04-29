@@ -2,6 +2,12 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
 
+
+class StaffUser(BaseModel):
+    id: str
+    email: str
+    role: str  # nurse | charge_nurse | admin
+
 class UrgencyLevel(str, Enum):
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"

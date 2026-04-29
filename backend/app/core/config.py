@@ -6,8 +6,8 @@ class Settings(BaseSettings):
     SUPABASE_URL: Optional[str] = None
     SUPABASE_SERVICE_KEY: Optional[str] = None
     SUPABASE_ANON_KEY: Optional[str] = None
-    SUPABASE_JWT_SECRET: Optional[str] = None
-    AUTH_ENABLED: bool = True
+    SUPABASE_JWT_SECRET: Optional[str] = None   # T-01: from Supabase → Project Settings → API → JWT Secret
+    AUTH_ENABLED: bool = True                   # T-02: set False in dev to bypass JWT checks
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
     OPENAI_MODEL: str = "gpt-4o-mini"
     CLASSIFY_TIMEOUT_SECONDS: int = 8
