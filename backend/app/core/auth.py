@@ -1,18 +1,28 @@
+from typing import Any
+
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 
 from app.core.config import settings
-from app.models.schemas import StaffUser
+from app.models.schemas import StaffRole, StaffUser
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
-_VALID_ROLES = {"nurse", "charge_nurse", "admin"}
-_DEV_USER = StaffUser(id="dev", email="dev@local", role="charge_nurse")
+_VALID_ROLES = {role.value for role in StaffRole}
+_DEV_USER = StaffUser(
+    id="00000000-0000-0000-0000-000000000002",
+    email="dev@local",
+    role=StaffRole.CHARGE_NURSE,
+)
 
 
-# T-06: decode and verify a Supabase-issued JWT
-def _decode_jwt(token: str) -> dict:
+def _role_value(role: StaffRole | str) -> str:
+    return role.value if isinstance(role, StaffRole) else role
+
+
+def _decode_jwt(token: str) -> dict[str, Any]:
     return jwt.decode(
         token,
         settings.SUPABASE_JWT_SECRET,
@@ -21,15 +31,14 @@ def _decode_jwt(token: str) -> dict:
     )
 
 
-# T-07: extract custom role from app_metadata claim
-def _extract_role(claims: dict) -> str:
-    role = claims.get("app_metadata", {}).get("role", "nurse")
-    return role if role in _VALID_ROLES else "nurse"
+def _extract_role(claims: dict[str, Any]) -> StaffRole:
+    role = claims.get("app_metadata", {}).get("role", StaffRole.NURSE.value)
+    if role not in _VALID_ROLES:
+        role = StaffRole.NURSE.value
+    return StaffRole(role)
 
 
-# T-08: FastAPI dependency — verifies token and returns StaffUser
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> StaffUser:
-    # Dev bypass: AUTH_ENABLED=false or no JWT secret configured
+async def get_current_user(token: str | None = Depends(oauth2_scheme)) -> StaffUser:
     if not settings.AUTH_ENABLED or not settings.SUPABASE_JWT_SECRET:
         return _DEV_USER
 
@@ -48,10 +57,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> StaffUser:
     )
 
 
-# T-09: RBAC factory — returns a Depends-compatible guard for the given roles
-def require_role(*roles: str):
-    async def guard(user: StaffUser = Depends(get_current_user)):
-        if user.role not in roles:
+def require_role(*roles: StaffRole | str):
+    allowed_roles = {_role_value(role) for role in roles}
+
+    async def guard(user: StaffUser = Depends(get_current_user)) -> StaffUser:
+        if _role_value(user.role) not in allowed_roles:
             raise HTTPException(status_code=403, detail="Insufficient role")
         return user
+
     return guard

@@ -1,4 +1,4 @@
-CREATE TABLE classification_log (
+CREATE TABLE IF NOT EXISTS classification_log (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id   UUID REFERENCES patients(id) ON DELETE CASCADE,
   input_hash   TEXT,
