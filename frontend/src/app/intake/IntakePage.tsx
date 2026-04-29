@@ -303,17 +303,29 @@ function DashboardView({ onStartIntake }: { onStartIntake: () => void }) {
 
 export function IntakePage() {
   const [view, setView] = useState<PatientPortalView>('dashboard');
+  const [patientRef, setPatientRef] = useState<string | null>(null);
 
   if (view === 'intake') {
-    return <IntakeForm onBack={() => setView('dashboard')} onSubmitted={() => setView('confirmation')} />;
+    return (
+      <IntakeForm
+        onBack={() => setView('dashboard')}
+        onSubmitted={(referenceId) => {
+          setPatientRef(referenceId);
+          setView('confirmation');
+        }}
+      />
+    );
   }
 
   if (view === 'confirmation') {
     return (
       <ConfirmationScreen
-        referenceId="MT-2023-1028"
+        referenceId={patientRef ?? 'Pending'}
         onBackHome={() => setView('dashboard')}
-        onNewIntake={() => setView('intake')}
+        onNewIntake={() => {
+          setPatientRef(null);
+          setView('intake');
+        }}
       />
     );
   }

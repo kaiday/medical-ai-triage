@@ -1,6 +1,7 @@
 import { AlertCircle, ArrowLeft, Check, Loader2, Stethoscope } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
+import { api } from '../../lib/api';
 import type { PatientIntake } from '../../lib/types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -23,6 +24,7 @@ export function IntakeForm({ onBack, onSubmitted }: IntakeFormProps) {
   const [conditions, setConditions] = useState<string[]>([]);
   const [touched, setTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const complaintError = touched && chiefComplaint.trim().length < 5;
   const painError = touched && painScale === null;
@@ -56,13 +58,20 @@ export function IntakeForm({ onBack, onSubmitted }: IntakeFormProps) {
       duration,
       painScale,
       age: age ? Number(age) : undefined,
-      conditions,
+      conditions: conditions.filter((condition) => condition !== 'None of the above'),
     };
+
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    console.info('Patient intake captured for API submission', intake);
-    setIsSubmitting(false);
-    onSubmitted(`PAT-${Date.now().toString().slice(-5)}`);
+    setSubmitError(null);
+
+    try {
+      const record = await api.submitIntake(intake);
+      onSubmitted(record.patientRef);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'We could not submit your symptoms. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -199,6 +208,12 @@ export function IntakeForm({ onBack, onSubmitted }: IntakeFormProps) {
             </Button>
             <Button onClick={onBack} type="button" variant="secondary">Cancel</Button>
           </div>
+          {submitError ? (
+            <div className="flex gap-3 rounded-xl border border-coral-200 bg-coral-50 p-4 text-sm font-semibold text-coral-700" role="alert">
+              <AlertCircle className="mt-0.5 shrink-0" size={18} />
+              <p>{submitError}</p>
+            </div>
+          ) : null}
         </form>
       </div>
     </Card>
