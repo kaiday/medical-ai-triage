@@ -1,15 +1,17 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 class Settings(BaseSettings):
-    OPENAI_API_KEY: str
-    SUPABASE_URL: str
-    SUPABASE_SERVICE_KEY: str
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
+    OPENAI_API_KEY: str = "dummy"
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
+    SUPABASE_ANON_KEY: Optional[str] = None
+    SUPABASE_JWT_SECRET: Optional[str] = None
+    AUTH_ENABLED: bool = True
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
     OPENAI_MODEL: str = "gpt-4o-mini"
     CLASSIFY_TIMEOUT_SECONDS: int = 8
 
-    class Config:
-        env_file = ".env"
+    model_config = {"env_file": ".env"}
 
 settings = Settings()
