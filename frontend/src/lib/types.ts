@@ -25,4 +25,8 @@ export interface Patient {
   finalLevel: UrgencyLevel;
   confirmed: boolean;
   submittedAt: string;
+  status?: 'waiting' | 'confirmed' | 'seen';
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+  seenAt?: string | null;
 }
