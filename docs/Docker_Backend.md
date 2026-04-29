@@ -91,3 +91,110 @@ Run a strict smoke test after `.env` contains real Supabase values:
 ```bash
 docker compose --profile smoke run --rm api-smoke
 ```
+
+## Command Reference
+
+Validate Compose configuration:
+
+```bash
+docker compose config
+docker compose --profile test config
+docker compose --profile smoke config
+```
+
+Build the backend image:
+
+```bash
+docker compose build api
+```
+
+Build the backend image directly:
+
+```bash
+docker build -t medical-ai-triage-backend ./backend
+```
+
+Run the backend API:
+
+```bash
+docker compose up --build api
+```
+
+Run the backend API in the background:
+
+```bash
+docker compose up -d --build api
+```
+
+Check backend health:
+
+```bash
+curl http://localhost:8000/health
+docker compose ps
+```
+
+View backend logs:
+
+```bash
+docker compose logs -f api
+```
+
+Run backend tests in Docker:
+
+```bash
+docker compose --profile test run --rm api-test
+```
+
+Run smoke checks without real Supabase credentials:
+
+```bash
+docker compose --profile smoke run --rm -e SMOKE_REQUIRE_SUPABASE=false api-smoke
+```
+
+Run live Supabase smoke checks:
+
+```bash
+docker compose --profile smoke run --rm api-smoke
+```
+
+Run live queue smoke checks after queue integration:
+
+```bash
+SMOKE_CHECK_QUEUE=true docker compose --profile smoke run --rm api-smoke
+```
+
+Stop and remove Docker resources for this Compose project:
+
+```bash
+docker compose down
+```
+
+Stop and remove containers plus local named volumes for this Compose project:
+
+```bash
+docker compose down --volumes
+```
+
+Remove the direct-build backend image:
+
+```bash
+docker image rm medical-ai-triage-backend
+```
+
+## CI Command Sequence
+
+A minimal CI job can run:
+
+```bash
+docker compose config
+docker compose build api
+docker compose --profile test run --rm api-test
+docker compose --profile smoke run --rm -e SMOKE_REQUIRE_SUPABASE=false api-smoke
+docker compose down
+```
+
+For a CI job with real Supabase secrets, replace the non-strict smoke command with:
+
+```bash
+docker compose --profile smoke run --rm api-smoke
+```
